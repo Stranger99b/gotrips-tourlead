@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -12,6 +13,13 @@ _raw_ids = os.getenv("ALLOWED_USER_IDS", "")
 ALLOWED_USER_IDS: set[int] = {int(x) for x in _raw_ids.split(",") if x.strip().isdigit()}
 
 BASE_DIR = Path(__file__).parent
+
+# Маппинг "Направление" → message_thread_id темы канала
+# Заполняется через get_topics.py или вручную в topics.json
+_topics_file = BASE_DIR / "topics.json"
+TOPIC_IDS: dict[str, int | None] = {}
+if _topics_file.exists():
+    TOPIC_IDS = json.loads(_topics_file.read_text(encoding="utf-8"))
 
 TOUR_DIRECTIONS = [
     "Дагестан",

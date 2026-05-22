@@ -28,6 +28,7 @@ from config import (
     BOT_TOKEN,
     CHANNEL_ID,
     DEEPGRAM_API_KEY,
+    TOPIC_IDS,
     TOUR_DIRECTIONS,
 )
 from transcription import transcribe
@@ -293,23 +294,30 @@ async def _send_to_channel(ctx, report: dict, closed_at: str) -> None:
     ch = CHANNEL_ID
     items = report["items"]
 
+    # Определяем тему канала по направлению (fallback → _default → без темы)
+    direction = report["direction"]
+    thread_id: int | None = TOPIC_IDS.get(direction) or TOPIC_IDS.get("_default") or None
+
+    # Все вызовы send_* получают thread_id если он задан
+    thr = {"message_thread_id": thread_id} if thread_id else {}
+
     header = (
         f"📋 *ОТЧЁТ ТУРА*\n"
         f"{'━' * 26}\n"
-        f"🗺 *Направление:* {report['direction']}\n"
+        f"🗺 *Направление:* {direction}\n"
         f"📅 *Дата старта:* {report['date']}\n"
         f"👤 *Турлидер:* {report['tourlead_name']}\n"
         f"🕐 *Открыт:* {report['started_at']}   *Закрыт:* {closed_at}\n"
         f"📝 *Сообщений:* {len(items)}\n"
         f"{'━' * 26}"
     )
-    await bot.send_message(ch, header, parse_mode=ParseMode.MARKDOWN)
+    await bot.send_message(ch, header, parse_mode=ParseMode.MARKDOWN, **thr)
 
     for idx, item in enumerate(items, 1):
         try:
             t = item["type"]
             if t == "text":
-                await bot.send_message(ch, item["content"])
+                await bot.send_message(ch, item["content"], **thr)
 
             elif t in ("voice", "audio"):
                 tr = item["transcription"]
@@ -317,35 +325,34 @@ async def _send_to_channel(ctx, report: dict, closed_at: str) -> None:
                     ch,
                     f"🎙 *Голосовое #{idx}:*\n{tr}",
                     parse_mode=ParseMode.MARKDOWN,
+                    **thr,
                 )
                 if t == "voice":
-                    await bot.send_voice(ch, item["file_id"])
+                    await bot.send_voice(ch, item["file_id"], **thr)
                 else:
-                    await bot.send_audio(ch, item["file_id"])
+                    await bot.send_audio(ch, item["file_id"], **thr)
 
             elif t == "photo":
-                cap = item.get("caption") or None
-                await bot.send_photo(ch, item["file_id"], caption=cap)
+                await bot.send_photo(ch, item["file_id"], caption=item.get("caption") or None, **thr)
 
             elif t == "video":
-                cap = item.get("caption") or None
-                await bot.send_video(ch, item["file_id"], caption=cap)
+                await bot.send_video(ch, item["file_id"], caption=item.get("caption") or None, **thr)
 
             elif t == "video_note":
-                await bot.send_video_note(ch, item["file_id"])
+                await bot.send_video_note(ch, item["file_id"], **thr)
 
             elif t == "document":
-                cap = item.get("file_name") or None
-                await bot.send_document(ch, item["file_id"], caption=cap)
+                await bot.send_document(ch, item["file_id"], caption=item.get("file_name") or None, **thr)
 
         except Exception as e:
             logger.error(f"Failed to send item #{idx} ({item['type']}): {e}")
-            await bot.send_message(ch, f"⚠️ Не удалось отправить элемент #{idx} ({item['type']})")
+            await bot.send_message(ch, f"⚠️ Не удалось отправить элемент #{idx} ({item['type']})", **thr)
 
     await bot.send_message(
         ch,
         f"{'━' * 26}\n✅ *Конец отчёта*",
         parse_mode=ParseMode.MARKDOWN,
+        **thr,
     )
 
 
