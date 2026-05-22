@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """GoTrips Tourlead — бот для отчётов турлидеров."""
 import logging
+import warnings
 from datetime import datetime
+
+warnings.filterwarnings("ignore", message=".*per_message=False.*")
 
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     ReplyKeyboardMarkup,
-    ReplyKeyboardRemove,
     Update,
 )
 from telegram.constants import ParseMode
@@ -265,25 +267,25 @@ async def close_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
 
     closed_at = datetime.now().strftime("%d.%m.%Y %H:%M")
-    progress = await update.message.reply_text(
-        "⏳ Отправляю отчёт в канал…",
-        reply_markup=ReplyKeyboardRemove(),
-    )
+    wait_msg = await update.message.reply_text("⏳ Отправляю отчёт в канал…")
 
     try:
         await _send_to_channel(ctx, report, closed_at)
         ctx.user_data.pop("report", None)
         ctx.user_data.pop("direction", None)
-        await progress.edit_text("✅ Отчёт отправлен!")
-        await update.message.reply_text(
-            "✅ *Отчёт успешно отправлен!*\n\nСпасибо за работу 🙌",
+        await wait_msg.delete()
+        await ctx.bot.send_message(
+            update.effective_chat.id,
+            "✅ *Отчёт успешно отправлен!*\n\nСпасибо за работу 🙌\n\n"
+            "👇 Нажми кнопку чтобы создать новый отчёт",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=_main_kb(),
         )
     except Exception as e:
         logger.error(f"Report send failed: {e}")
-        await progress.edit_text("❌ Ошибка при отправке.")
-        await update.message.reply_text(
+        await wait_msg.edit_text("❌ Ошибка при отправке.")
+        await ctx.bot.send_message(
+            update.effective_chat.id,
             "❌ Не удалось отправить отчёт. Попробуй ещё раз или свяжись с администратором.",
             reply_markup=_collect_kb(),
         )
