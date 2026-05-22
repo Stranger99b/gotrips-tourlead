@@ -45,7 +45,10 @@ async def main() -> None:
     mapping: dict[str, int] = {}
     offset = 0
 
-    async with httpx.AsyncClient(timeout=35) as client:
+    # read_timeout должен быть больше Telegram-таймаута (20с)
+    tg_timeout = httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=5.0)
+
+    async with httpx.AsyncClient(timeout=tg_timeout) as client:
         # Сброс старых апдейтов
         r = await client.get(
             f"https://api.telegram.org/bot{TOKEN}/getUpdates",
@@ -60,7 +63,7 @@ async def main() -> None:
             while True:
                 r = await client.get(
                     f"https://api.telegram.org/bot{TOKEN}/getUpdates",
-                    params={"offset": offset, "timeout": 25},
+                    params={"offset": offset, "timeout": 20},
                 )
                 for upd in r.json().get("result", []):
                     offset = upd["update_id"] + 1

@@ -431,6 +431,7 @@ def main() -> None:
         ],
         persistent=True,
         name="main_conv",
+        per_message=False,
     )
 
     app.add_handler(conv)
