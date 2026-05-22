@@ -371,6 +371,15 @@ async def cmd_cancel(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
+async def cmd_myid(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    u = update.effective_user
+    await update.message.reply_text(
+        f"👤 *Твой Telegram ID:* `{u.id}`\n\n"
+        "Отправь этот номер администратору, чтобы получить доступ к боту.",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
 async def error_handler(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     logger.error("Unhandled exception:", exc_info=ctx.error)
 
@@ -440,6 +449,7 @@ def main() -> None:
     )
 
     app.add_handler(conv)
+    app.add_handler(CommandHandler("myid", cmd_myid))
     app.add_error_handler(error_handler)
 
     logger.info("GoTrips Tourlead Bot запущен")
