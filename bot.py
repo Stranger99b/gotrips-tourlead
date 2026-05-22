@@ -83,6 +83,9 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text("⛔ Доступ закрыт. Обратитесь к администратору.")
         return ConversationHandler.END
 
+    ctx.user_data.pop("report", None)
+    ctx.user_data.pop("direction", None)
+
     await update.message.reply_text(
         f"Привет, {update.effective_user.first_name}! 👋\n\n"
         "Это бот для отправки отчётов турлидеров *GoTrips*.\n\n"
