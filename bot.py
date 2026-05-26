@@ -24,6 +24,11 @@ from telegram.ext import (
     ContextTypes,
 )
 
+def _md(text: str) -> str:
+    """Escape user-provided text for Markdown v1."""
+    return str(text).replace("_", r"\_").replace("*", r"\*").replace("`", r"\`").replace("[", r"\[")
+
+
 from config import (
     ALLOWED_USER_IDS,
     BASE_DIR,
@@ -109,7 +114,7 @@ async def start_report(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
         n = len(report["items"])
         await update.message.reply_text(
             f"⚠️ У тебя есть незакрытый отчёт:\n"
-            f"🗺 *{report['direction']}* · {report['date']}\n"
+            f"🗺 *{_md(report['direction'])}* · {_md(report['date'])}\n"
             f"📝 Сообщений: {n}\n\n"
             "Продолжай добавлять материалы. Когда закончишь — нажми «✅ Закрыть отчет».\n\n"
             "Чтобы отменить текущий отчёт — /cancel",
@@ -167,9 +172,9 @@ async def enter_date(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text(
         f"📋 *Отчёт открыт*\n"
         f"{'─' * 24}\n"
-        f"🗺 *Направление:* {direction}\n"
-        f"📅 *Дата старта:* {date}\n"
-        f"👤 *Турлидер:* {name}\n"
+        f"🗺 *Направление:* {_md(direction)}\n"
+        f"📅 *Дата старта:* {_md(date)}\n"
+        f"👤 *Турлидер:* {_md(name)}\n"
         f"{'─' * 24}\n\n"
         "Что можно добавить в отчёт:\n"
         "• 🎙 *Голосовые сообщения* _(расшифрую автоматически)_\n"
@@ -217,7 +222,7 @@ async def collect_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
         # Обрезаем для отображения турлидеру (не обрезаем то что уйдёт в канал)
         preview = text[:500] + ("…" if len(text) > 500 else "")
         await status.edit_text(
-            f"✅ *Расшифровано:*\n_{preview}_",
+            f"✅ *Расшифровано:*\n_{_md(preview)}_",
             parse_mode=ParseMode.MARKDOWN,
         )
 
@@ -309,10 +314,10 @@ async def _send_to_channel(ctx, report: dict, closed_at: str) -> None:
     header = (
         f"📋 *ОТЧЁТ ТУРА*\n"
         f"{'━' * 26}\n"
-        f"🗺 *Направление:* {direction}\n"
-        f"📅 *Дата старта:* {report['date']}\n"
-        f"👤 *Турлидер:* {report['tourlead_name']}\n"
-        f"🕐 *Открыт:* {report['started_at']}   *Закрыт:* {closed_at}\n"
+        f"🗺 *Направление:* {_md(direction)}\n"
+        f"📅 *Дата старта:* {_md(report['date'])}\n"
+        f"👤 *Турлидер:* {_md(report['tourlead_name'])}\n"
+        f"🕐 *Открыт:* {_md(report['started_at'])}   *Закрыт:* {_md(closed_at)}\n"
         f"📝 *Сообщений:* {len(items)}\n"
         f"{'━' * 26}"
     )
@@ -328,7 +333,7 @@ async def _send_to_channel(ctx, report: dict, closed_at: str) -> None:
                 tr = item["transcription"]
                 await bot.send_message(
                     ch,
-                    f"🎙 *Голосовое #{idx}:*\n{tr}",
+                    f"🎙 *Голосовое #{idx}:*\n{_md(tr)}",
                     parse_mode=ParseMode.MARKDOWN,
                     **thr,
                 )
@@ -401,6 +406,7 @@ def main() -> None:
         ApplicationBuilder()
         .token(BOT_TOKEN)
         .persistence(persistence)
+        .concurrent_updates(True)
         .connect_timeout(30)
         .read_timeout(60)
         .write_timeout(60)
