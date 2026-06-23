@@ -3,6 +3,7 @@
 import logging
 import warnings
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
 
 warnings.filterwarnings("ignore", message=".*per_message=False.*")
 
@@ -43,7 +44,17 @@ from transcription import transcribe
 logging.basicConfig(
     format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
     level=logging.INFO,
+    handlers=[
+        RotatingFileHandler(
+            BASE_DIR / "bot.log",
+            maxBytes=5_000_000,
+            backupCount=3,
+            encoding="utf-8",
+        )
+    ],
 )
+# httpx логирует каждый getUpdates на INFO — это раздувало лог до десятков МБ.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # ── Conversation states ──────────────────────────────────────────────────────
@@ -195,7 +206,12 @@ async def enter_date(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def collect_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
-    msg = update.message
+    # update.message бывает None, когда турлидер РЕДАКТИРУЕТ ранее отправленное
+    # сообщение (тогда заполнено update.edited_message). Раньше это роняло хендлер
+    # на msg.voice. effective_message покрывает оба случая.
+    msg = update.effective_message
+    if msg is None:
+        return COLLECTING
     report = ctx.user_data.get("report")
 
     if not report:

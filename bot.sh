@@ -24,7 +24,9 @@ start() {
         exit 1
     fi
     cd "$DIR"
-    nohup "$PYTHON" bot.py >> "$LOG_FILE" 2>&1 &
+    # bot.log теперь пишет сам Python (RotatingFileHandler). Сюда — только то,
+    # что упадёт ДО инициализации логгера (ранние трейсбеки).
+    nohup "$PYTHON" bot.py >> "$DIR/startup.log" 2>&1 &
     echo $! > "$PID_FILE"
     echo "Бот запущен (PID $!)"
 }
