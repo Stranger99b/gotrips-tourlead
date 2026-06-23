@@ -218,6 +218,21 @@ async def collect_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
         await msg.reply_text("Нет открытого отчёта. Нажми «📋 Начать отчет».", reply_markup=_main_kb())
         return ConversationHandler.END
 
+    # Турлидер РЕДАКТИРУЕТ ранее отправленное сообщение → Telegram шлёт edited_message.
+    # Раньше это добавляло ДУБЛЬ пункта в отчёт (одно сообщение уходило в канал 2-3 раза).
+    # Теперь находим уже добавленный пункт по id исходного сообщения и обновляем его
+    # НА МЕСТЕ, без повторного подтверждения/расшифровки. Если пункт не найден
+    # (например, бот перезапускался) — просто игнорируем правку, дубль не создаём.
+    if update.edited_message is not None:
+        for item in report["items"]:
+            if item.get("src_msg_id") == msg.message_id:
+                if item["type"] == "text" and msg.text:
+                    item["content"] = msg.text
+                elif "caption" in item:
+                    item["caption"] = msg.caption or ""
+                break
+        return COLLECTING
+
     if msg.voice or msg.audio:
         is_voice = bool(msg.voice)
         file_id = msg.voice.file_id if is_voice else msg.audio.file_id
@@ -234,6 +249,7 @@ async def collect_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
             "type": "voice" if is_voice else "audio",
             "file_id": file_id,
             "transcription": text,
+            "src_msg_id": msg.message_id,
         })
         # Обрезаем для отображения турлидеру (не обрезаем то что уйдёт в канал)
         preview = text[:500] + ("…" if len(text) > 500 else "")
@@ -243,13 +259,14 @@ async def collect_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
         )
 
     elif msg.text:
-        report["items"].append({"type": "text", "content": msg.text})
+        report["items"].append({"type": "text", "content": msg.text, "src_msg_id": msg.message_id})
 
     elif msg.photo:
         report["items"].append({
             "type": "photo",
             "file_id": msg.photo[-1].file_id,
             "caption": msg.caption or "",
+            "src_msg_id": msg.message_id,
         })
         await msg.reply_text("📸 Фото добавлено в отчёт.")
 
@@ -258,11 +275,12 @@ async def collect_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
             "type": "video",
             "file_id": msg.video.file_id,
             "caption": msg.caption or "",
+            "src_msg_id": msg.message_id,
         })
         await msg.reply_text("🎬 Видео добавлено в отчёт.")
 
     elif msg.video_note:
-        report["items"].append({"type": "video_note", "file_id": msg.video_note.file_id})
+        report["items"].append({"type": "video_note", "file_id": msg.video_note.file_id, "src_msg_id": msg.message_id})
         await msg.reply_text("🎬 Видео добавлено в отчёт.")
 
     elif msg.document:
@@ -271,6 +289,7 @@ async def collect_msg(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
             "file_id": msg.document.file_id,
             "file_name": msg.document.file_name or "документ",
             "caption": msg.caption or "",
+            "src_msg_id": msg.message_id,
         })
         await msg.reply_text(f"📎 Файл «{msg.document.file_name or 'документ'}» добавлен.")
 
